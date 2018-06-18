@@ -1,4 +1,0 @@
-l = 5;
-r = 8;
-less = l < r;
-print less

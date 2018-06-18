@@ -1,8 +1,0 @@
-// This is a comment
-zero = 0;
-one = 1;
-two = one + zero;
-three = two + one;
-four = three + two;
-five = four + three;
-print five

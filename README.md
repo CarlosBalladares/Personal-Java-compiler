@@ -1,18 +1,11 @@
-# minijava base project
 
-This project acts as a solution for the functions project! Please adapt it as needed to provide a working compiler for the minijava language.
-- Description of stages 1 - 3 : http://www.ugrad.cs.ubc.ca/~cs411/2016w2/minijava1-3.html 
-- Description of stage 4 : http://www.ugrad.cs.ubc.ca/~cs411/2016w2/minijava4.html
-- Description of stage 5 : http://www.ugrad.cs.ubc.ca/~cs411/2016w2/minijava5.html
-- Description of stage 6 : http://www.ugrad.cs.ubc.ca/~cs411/2016w2/minijava6.html
+# Personal Java compiler
 
+This is a java compiler I created with a classmate Daniel May
+and guidance of professor Ronald Garcia for CPSC411 Compiler construction.
 
-## How do I setup this project
-Look at the instructions for the functions-starter project.
+This project is a compiler that accepts simple Java programs. The features
+supported are a subset of all the feature offered in the Java language.
 
-## How do I run only the tests of a particular package from IntelliJ?
-Right-click the package/class you want to run and click on "Run 'Tests in package.name'"
+If you want me to take this repo down open an issue and I will immediately remove it.
 
-## How do I run only the tests of a particular package from the terminal?
-- Go to the module folder
-- Run `mvn "-Dtest=test/parser/*.java" test` (replace test/parser for whichever the package/name is)

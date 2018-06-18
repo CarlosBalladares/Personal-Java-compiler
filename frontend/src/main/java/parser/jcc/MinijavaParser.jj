@@ -1,0 +1,579 @@
+/**
+ * JavaCC file
+ */
+ 
+options {
+  JDK_VERSION = "1.6";
+  STATIC = false;
+}
+PARSER_BEGIN(JCCMinijavaParser)
+package parser.jcc;
+
+import ast.*;
+import java.util.ArrayList;
+import java.util.List;
+import ast.BooleanExpression.Op;
+
+public class JCCMinijavaParser {
+}
+
+PARSER_END(JCCMinijavaParser)
+
+SKIP :
+{
+ 	" "
+|	"\r"
+|	"\t"
+|	"\n"
+|	< MULTI_LINE_COMMENT: "/*" (~["*"])* "*" ("*" | ~["*","/"] (~["*"])* "*")* "/" >
+|   < SINGLE_LINE_COMMENT: "//" (~["\n"])* >
+|   < #NOT_STAR_SLASH: ~["*"] | "*" ~["/"] >
+}
+
+TOKEN : /* KEYWORDS */
+{
+
+	< RETURN: 		"return" >
+|   < CLASS:        "class" >
+|   < PUBLIC:       "public" >
+|   < STATIC:       "static" >
+|   < MAIN:         "main" >
+|   < EXTENDS:      "extends" >
+|   < IF:           "if" >
+|   < ELSE:         "else" >
+|   < WHILE:        "while" >
+|   < SOUT:         "System.out.println" >
+|   < NEW:           "new" >
+|   < THIS:          "this" >
+|   < LENGTH:       "length">
+|   < NULL:           "null">
+}
+
+TOKEN : /* TYPES */
+{
+  	< INT:			"int" >
+| 	< BOOLEAN: 		"boolean" >
+|   < STRING:       "String" >
+|   < VOID:         "void" >
+
+
+}
+
+TOKEN : /* SEPARATORS and OPERATORS*/
+{	<LPAREN: "(">
+|	<RPAREN: ")">
+|	<LBRACE: "{">
+|	<RBRACE: "}">
+|   <LBRACKET: "[" >
+|   <RBRACKET: "]" >
+|	<ASSIGN: "=">
+|	<QUESTION:	 "?">
+|	<PLUS:	 "+" >
+|	<MINUS:  "-" >
+|	<MULT:   "*" >
+|	<SMALLER:"<">
+|	<NOT:	 "!">
+| 	<COLON:	 ":" >
+| 	<COMMA:	"," >
+| 	<SEMICOLON:	 ";" >
+|   <AMP: "&&" >
+|   <DOT: "." >
+|   <EQUALS: "==">
+|   <OR: "||">
+|   <GREATER:   ">">
+|   <NOTEQUALS: "!=">
+|   <GEQ: ">=">
+|   <LEQ: "<=">
+
+
+
+}
+
+TOKEN :
+{   < INTEGER_LITERAL: ( <DIGIT> )+ >
+|   < TRUE:         "true" >
+|   < FALSE:        "false" >
+|   < IDENTIFIER: <LETTER> (<LETTER> | "_" | <DIGIT>)* >
+|   < #LETTER: ["A" - "Z", "a" - "z"] >
+|   < #DIGIT: ["0" - "9"] >
+
+
+}
+
+
+
+
+// ======================= MINIJAVA PARSING BEGINS HERE   =======================
+
+
+// Program is "Goal"
+Program Program() : {
+	NodeList<ClassDecl> classDeclList = new NodeList<ClassDecl>();
+	ClassDecl classDecl;
+	MainClass mainClass;
+}
+{
+
+    mainClass=MainClass()
+    (   classDecl = ClassDecl()
+		{ classDeclList.add(classDecl); }
+	)*
+	<EOF>
+	{ return new Program(mainClass, classDeclList); }
+}
+
+
+// Main Classs
+MainClass MainClass() : {
+    Token classIdentifier;
+    Token argIdentifier;
+    Statement statement;
+}
+{
+    <CLASS>
+    classIdentifier = <IDENTIFIER>
+    <LBRACE>
+    <PUBLIC>
+    <STATIC>
+    <VOID>
+    <MAIN>
+    <LPAREN>
+    <STRING>
+    <LBRACKET>
+    <RBRACKET>
+    argIdentifier = <IDENTIFIER>
+    <RPAREN>
+    <LBRACE>
+    statement = Statement()
+    <RBRACE>
+    <RBRACE>
+    {return new MainClass(classIdentifier.image, argIdentifier.image, statement);}
+}
+
+// Class declaration
+ClassDecl ClassDecl() : {
+    Token classIdentifier;
+    Token superIdentifier = new Token();
+    VarDecl varDecl;
+    MethodDecl methodDecl;
+    NodeList<VarDecl> varDeclList = new NodeList<VarDecl>();
+    NodeList<MethodDecl> methodDeclList = new NodeList<MethodDecl>();
+    int fieldIndex=0;
+
+}
+{
+    <CLASS>
+    classIdentifier = <IDENTIFIER>
+    (<EXTENDS>
+    superIdentifier = <IDENTIFIER>
+    )?
+    <LBRACE>
+    (varDecl = FieldDecl(fieldIndex)
+        {
+        varDeclList.add(varDecl);
+        fieldIndex++;
+        }
+    )*
+    (methodDecl = MethodDecl()
+        {methodDeclList.add(methodDecl);}
+    )*
+    <RBRACE>
+
+    {return new ClassDecl(classIdentifier.image, superIdentifier.image, varDeclList, methodDeclList);}
+}
+
+
+// Field Declaration
+VarDecl FieldDecl(int fieldIndex) : {
+    Type type;
+    IdentifierExp identifierExp;
+}
+{
+    type = Type()
+    identifierExp = IdentifierExp()
+    <SEMICOLON>
+    // Empty index value
+    {return new VarDecl(VarDecl.Kind.FIELD, type, identifierExp.name, fieldIndex);}
+}
+// Local Declaration
+VarDecl LocalDecl(int localIndex) : {
+    Type type;
+    IdentifierExp identifierExp;
+}
+{
+    type = Type()
+    identifierExp = IdentifierExp()
+    <SEMICOLON>
+    // Empty index value
+    {return new VarDecl(VarDecl.Kind.LOCAL,type, identifierExp.name, 0);}
+}
+
+// Method declaration
+MethodDecl MethodDecl() : {
+    int formalIndex=0;
+    int localIndex=0;
+    Type returnType;
+    IdentifierExp methodIdentifier;
+    VarDecl varDecl;
+    Statement statement;
+    Type formalType;
+    IdentifierExp formalIdentifier;
+    NodeList<VarDecl> varDeclList = new NodeList<VarDecl>();
+    NodeList<Statement> statementList = new NodeList<Statement>();
+    NodeList<VarDecl> formalList = new NodeList<VarDecl>();
+    Expression returnExpression;
+}
+{
+    <PUBLIC>
+    returnType = Type()
+    methodIdentifier = IdentifierExp()
+    <LPAREN>
+    (formalType = Type()
+     formalIdentifier = IdentifierExp()
+        {varDecl = new VarDecl(VarDecl.Kind.LOCAL, formalType,formalIdentifier.name,formalIndex);
+            formalList.add(varDecl);
+        }
+        (<COMMA>
+            formalType = Type()
+            formalIdentifier = IdentifierExp()
+              {   formalIndex++;
+                  varDecl = new VarDecl(formalType,formalIdentifier.name,formalIndex);
+                  formalList.add(varDecl);
+        })*
+     )?
+    <RPAREN>
+    <LBRACE>
+
+    (  LOOKAHEAD(2) // This lookahead differentiates between another var decl and  statement.
+       varDecl = LocalDecl(localIndex)
+        {
+        varDeclList.add(varDecl);
+        localIndex++;
+        }
+    )*
+    (statement = Statement()
+        {statementList.add(statement);}
+    )*
+
+    <RETURN>
+    returnExpression = Expression()
+    <SEMICOLON>
+    <RBRACE>
+
+    {return new MethodDecl(returnType,methodIdentifier.name,formalList,varDeclList,statementList,returnExpression);}
+}
+
+
+// Types minijava supports
+Type Type() : {
+    Token t;
+}
+{
+   (    LOOKAHEAD(2) //  int vs int[]
+
+        <INT><LBRACKET><RBRACKET> {return new IntArrayType();}
+    |   <INT> {return new IntegerType();}
+
+    )
+
+|   <BOOLEAN> {return new BooleanType();}
+|   t=<IDENTIFIER> {return new ObjectType(t.image);}
+}
+
+
+// Statements in Minijava
+Statement Statement() : {
+    NodeList<Statement> statementList = new NodeList<Statement>();
+    Statement s1, s2, s3;
+    Expression  e1, e2, e3;
+    IdentifierExp identifierExp;
+}
+{
+    <LBRACE>
+    (s1 = Statement()
+    {statementList.add(s1);}
+    )*
+    <RBRACE>
+    {return new Block(statementList);}
+
+|   <IF><LPAREN> e1 = Expression()<RPAREN>
+    s1 = Statement()
+    <ELSE>
+    s2 = Statement()
+    {return new If(e1, s1, s2);}
+
+|   <WHILE>
+    <LPAREN>
+    e1 = Expression()
+    <RPAREN>
+    s1 = Statement()
+    {return new While(e1,s1);}
+
+|   <SOUT>
+    <LPAREN>
+    e1 = Expression()
+    <RPAREN>
+    <SEMICOLON>
+    {return new Print(e1);}
+
+    // The lookahead allows us to avoid ArrayAssign being unreachable?
+|(  LOOKAHEAD(2) // checks <IDENTIFIER> <ASSIGN > vs <IDENTIFIER> <LBRACKET>
+    identifierExp = IdentifierExp()
+    <ASSIGN>
+    e1 = Expression()
+    <SEMICOLON>
+    {
+    return new Assign(identifierExp, e1);}
+
+|   identifierExp = IdentifierExp()
+    <LBRACKET>
+    e1 = Expression()
+    <RBRACKET>
+    <ASSIGN>
+    e2 = Expression()
+    <SEMICOLON>
+    {
+    return new ArrayAssign(identifierExp.name, e1, e2);}
+)
+}
+
+
+//====================== THE CHAIN OF EXPRESSIONS BEGINS HERE =======================
+
+Expression Expression() : {
+    Expression expression;
+}
+{
+    expression = BooleanExpression() {return expression;}
+
+}
+
+Expression BooleanExpression() : {
+    Expression expression;
+    Expression expression2;
+    Token t;
+}
+{
+    expression = RelopInt()
+    ((t=<OR>|t=<AMP>)
+    expression2 = RelopInt() {
+
+            Op operand=null;
+
+
+            if(t.image.equals("&&")){
+                operand=Op.AND;
+            }else if(t.image.equals("||")){
+                operand=Op.OR;
+            }
+
+
+            expression = new BooleanExpression(expression,expression2, operand);
+
+        }
+    )*
+    {return expression;}
+}
+
+//Expression And() : {
+//    Expression expression;
+//    Expression expression2;
+//    }
+//    {
+//    expression = LessThan()
+//    (<AMP>
+//    expression2 = BooleanExpression() {expression = new And(expression,expression2);}
+//    )?
+//    {return expression;}
+//}
+
+Expression RelopInt() : {
+	Expression e, e2;
+	Token t;
+}
+{ 	e=Binop()
+	( (t=<SMALLER>|t=<GREATER>| t=<GEQ>| t=<LEQ>)
+
+	    e2=RelopInt()
+		{ Op operand=null;
+
+
+          if(t.image.equals("<")){
+              operand=Op.LT;
+          }else if(t.image.equals(">")){
+              operand=Op.GT;
+          }else if(t.image.equals("<=")){
+              operand = Op.LEQ;
+          }else if(t.image.equals(">=")){
+               operand= Op.GEQ;
+          }else{
+            throw new Error("unandled case parsing RelopInt ");
+          }
+		 e = new BooleanExpression(e, e2,operand); }
+	)?
+	{ return e; }
+}
+
+
+// For parsing anything with priority same or higher than +
+Expression Binop() : {
+	Expression e, e2;
+	Token op;
+}
+{	e=Times()
+	( 	(op="+"|op="-")
+		e2=Times()
+			{ if (op.image.equals("+"))
+				e=new Plus(e, e2);
+			  else
+			  	e=new Minus(e, e2);
+			}
+	)*
+	{ return e; }
+}
+
+// For parsing anything with priority same or higher than *
+Expression Times() :  {
+	Expression e, e2;
+}
+{	e=Equality()
+	(	"*" e2=Equality()
+			{ e = new Times(e, e2); }
+	)*
+	{ return e; }
+}
+
+Expression Equality() : {
+     Expression expression;
+     Expression expression2;
+     Token t;
+ }
+ {
+     expression = ArrayLength()
+     ((t=<EQUALS>|t=<NOTEQUALS>)
+     expression2 = Binop() {
+             Op op = null;
+             String i =t.image;
+             if(i.equals("==")){
+                op = Op.EQ;
+             }else{
+                op= Op.NEQ;
+             }
+             expression = new BooleanExpression(expression,expression2, op);
+
+         }
+     )*
+     {return expression;}
+ }
+
+
+
+
+
+Expression ArrayLength() : {
+    Expression expression;
+    Expression expression2;
+}
+{
+    expression = ArrayLookup()
+    (LOOKAHEAD(2)// Checks <DOT><LENGTH> vs <DOT>
+    <DOT>  <LENGTH>{return new ArrayLength(expression);}
+    |
+    (<DOT>
+            expression = FnCall(expression)
+    )
+    )?
+    {return expression;}
+}
+
+
+
+Expression FnCall(Expression lhs):{
+    IdentifierExp   name;
+    Expression lastCall;
+    Expression expression2;
+    NodeList<Expression> params= new NodeList<Expression>();}
+{
+        (<LENGTH>{return new ArrayLength(lhs);})?
+        name = IdentifierExp()
+            <LPAREN>
+                    (expression2=Expression()     {params.add(expression2);}
+                     (<COMMA>expression2=Expression()     {params.add(expression2);})*)?
+        <RPAREN>{lastCall= new Call(lhs,name, params);}
+        (<DOT> lastCall=FnCall(lastCall))?
+        {return lastCall;}
+}
+
+Expression ArrayLookup() : {
+    Expression expression;
+    Expression expression2;
+}
+{
+    expression = FnCall2()(
+    <LBRACKET>
+    expression2 = Binop()
+    <RBRACKET>
+    {return new ArrayLookup(expression,expression2);})?
+    {return expression;}
+}
+
+
+Expression FnCall2():{
+    IdentifierExp   name;
+    Expression expression;
+    Expression expression2;
+    NodeList<Expression> params= new NodeList<Expression>();
+    Expression lhs;
+
+    }
+{
+         lhs = PrimaryExpression()
+            (LOOKAHEAD(2)// Checks <DOT><LENGTH> vs <DOT>
+                <DOT>  <LENGTH>{return new ArrayLength(lhs);})?
+
+
+            (<DOT>
+                    expression = FnCall(lhs)
+                    {return expression;}
+
+            )?
+
+            {return lhs;}
+
+
+
+}
+
+
+// Primary Expression(terminal points)
+Expression PrimaryExpression():
+{
+    Expression mainExp;
+    Expression secondExp;
+
+    IdentifierExp   name;
+
+    NodeList<AST> params= new NodeList<AST>();
+
+    Token t;
+}{
+    (
+        t = <INTEGER_LITERAL>{return new IntegerLiteral(t.image);}
+    |<TRUE>{return new BooleanLiteral(true);}
+    |<FALSE>{return new BooleanLiteral(false);}
+    |name=IdentifierExp(){return name;}
+    |<THIS>{return new This();}
+    |<NULL>{return new Null();}
+    |<NEW>  (<INT><LBRACKET>secondExp=Expression()<RBRACKET>{return new NewArray(secondExp);})? name = IdentifierExp()<LPAREN><RPAREN>{return new NewObject(name.name);}
+    |<NOT>mainExp=Expression(){return new Not(mainExp);}
+    |<LPAREN>mainExp=Expression()<RPAREN>{return mainExp;}
+    )
+}
+
+IdentifierExp IdentifierExp() : {
+	Token i;
+}
+{
+	i = <IDENTIFIER>
+	{ return new IdentifierExp(i.image); }
+}

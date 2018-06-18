@@ -1,6 +1,6 @@
 # Personal Java compiler
 
-This is a java compiler I created with a classmate Daniel May https://github.com/dcmay22
+This is a java compiler I created with a classmate Daniel May
 and guidance of professor Ronald Garcia for CPSC411 Compiler construction.
 
 This project is a compiler that accepts simple Java programs. The features

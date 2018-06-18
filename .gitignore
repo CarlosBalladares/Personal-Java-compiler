@@ -1,0 +1,5 @@
+frontend/target/
+ir/target/
+*.tmp
+out/
+frontend/src/main/java/parser/jcc/*.java

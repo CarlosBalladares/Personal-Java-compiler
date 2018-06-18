@@ -1,0 +1,258 @@
+/**
+ * JavaCC file
+ */
+ 
+options {
+  JDK_VERSION = "1.8";
+  STATIC = false;
+}
+PARSER_BEGIN(JCCExpressionsParser)
+package parser.jcc;
+
+import ast.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class JCCExpressionsParser {
+}
+
+PARSER_END(JCCExpressionsParser)
+
+SKIP :
+{
+ 	" "
+|	"\r"
+|	"\t"
+|	"\n"
+|	< MULTI_LINE_COMMENT: "/*" (~["*"])* "*" ("*" | ~["*","/"] (~["*"])* "*")* "/" >
+|   < SINGLE_LINE_COMMENT: "//" (~["\n"])* >
+}
+
+TOKEN : /* KEYWORDS */
+{
+	<PRINT:		"print" >
+|   <RETURN:   "return" >
+}
+
+TOKEN : //Type
+{
+    <TYPE: ("int" | "boolean")>
+}
+
+TOKEN : /* SEPARATORS and OPERATORS*/
+{
+    <LPAREN: "(">
+|	<RPAREN: ")">
+|	<ASSIGN: "=">
+|	<QUESTION:	 "?">
+|	<COLON:	 ":" >
+|	<PLUS:	 "+" >
+|	<MINUS:  "-" >
+|	<MULT:   "*" >
+|	<SMALLER:"<">
+|	<NOT:	 "!">
+|   <LBRAC: "{">
+|   <RBRAC: "}">
+|   <SCOLON: ";">
+|   <COMMA: ",">
+}
+
+TOKEN :
+{
+    < INTEGER_LITERAL: ( <DIGIT> )+ >
+|   < IDENTIFIER: <LETTER> (<LETTER> | "_" | <DIGIT>)* >
+|   < #LETTER: ["A" - "Z", "a" - "z"] >
+|   < #DIGIT: ["0" - "9"] >
+}
+
+Program Program() : { 
+	NodeList<Statement> ss = new NodeList<Statement>();
+	Statement s; 
+	Expression e;
+}
+{
+	( s=Statement()
+		{ ss.add(s); } 
+	)*
+	<PRINT> e = Expression()
+	<EOF>
+	{ return new Program(ss, new Print(e)); }
+}
+
+Statement Statement() : {
+	Statement s = null;
+}
+{
+    s=FunctionDeclaration() {return s;}
+    |     s=Assign() {return s;}
+}
+
+Statement Assign() : {
+	String name;
+	Expression value;
+}
+{	name=Identifier() 
+	"="
+	value=Expression() ";"
+		{return new Assign(name, value); }
+}
+
+
+Expression Expression() : {
+	Expression e, e2, e3;
+}
+{	e=CompExpression() 
+	( "?" e2 = Expression()
+	  ":" e3 = Expression()
+		{	e = new Conditional(e, e2, e3); }
+	)?
+	{ return e; }
+}
+
+// For parsing anything with priority same or higher than <
+Expression CompExpression() : {
+	Expression e, e2;
+}
+{ 	e=AddExpression() 
+	( "<" e2=AddExpression() 
+		{ e = new LessThan(e, e2); }
+	)?
+	{ return e; }
+}
+// For parsing anything with priority same or higher than +
+Expression AddExpression() : {
+	Expression e, e2;
+	Token op;
+}
+{	e=MultExpression() 
+	( 	(op="+"|op="-") 
+		e2=MultExpression() 
+			{ if (op.image.equals("+"))
+				e=new Plus(e, e2);
+			  else
+			  	e=new Minus(e, e2);
+			}	
+	)*
+	{ return e; }
+}
+
+// For parsing anything with priority same or higher than *
+Expression MultExpression() :  {
+	Expression e, e2;
+}
+{	e=NotExpression() 
+	(	"*" e2=NotExpression()
+			{ e = new Times(e, e2); } 
+	)*
+	{ return e; }
+}
+
+// For parsing anything with priority same or higher than ! expressions:
+Expression NotExpression() : {
+	Expression e;
+}
+{ 	"!" e=NotExpression()
+		{ return new Not(e); }
+| 	e=PrimaryExpression()
+		{ return e; }
+}
+        
+/* PrimaryExpression is the expression that has highest precedence.*/
+Expression PrimaryExpression() : {
+	Token t;
+	String i;
+	Expression e;
+	ExpressionList el;
+}
+{ t=<INTEGER_LITERAL>					{ return new IntegerLiteral(t.image); }
+|  i=Identifier() ("(" el=ExpressionList() ")" {return new PrimaryExpression(i,el);} )? { return new IdentifierExp(i); }
+| "(" e=Expression() ")"				        { return e; }
+
+}
+
+
+String Identifier() : {
+	Token i;
+}
+{
+	i = <IDENTIFIER>
+	{ return i.image; }
+}
+
+//Functions
+
+
+Statement FunctionDeclaration() : {
+    //Since 0 or more assignments, list of statement (like Program)
+    NodeList<Statement> ss = new NodeList<Statement>();
+    Type t;
+    String i;
+    FormalList f;
+    Statement a;
+    Expression e;
+    }
+    {
+    t = Type()
+    i = Identifier()
+    "("
+    f = FormalList()
+    ")"
+    "{"
+    (a = Assign() {ss.add(a);} )*
+    "return"
+    e = Expression()
+    ";"
+    "}"
+    {return new FunctionDeclaration(t,i,f,ss,e);}
+
+}
+
+ListElement ListElement() : {
+    Type type;
+    String id;
+   }
+    {
+    type = Type()
+    id = Identifier()
+    {return new ListElement(type, id);}
+
+    }
+
+FormalList FormalList() : {
+    FormalList fList = new FormalList();
+    ListElement le;
+    }
+    {
+    (le = ListElement() {fList.add(le);} ("," le = ListElement() {fList.add(le);})* )?
+    {
+    return fList;
+    }
+}
+
+Type Type() : {
+    Token t;
+    }
+    {
+    t= < TYPE >
+    {
+    if (t.image.equals("int")){
+        return new IntegerType();
+        }
+
+    else if (t.image.equals("boolean")){
+        return new BooleanType();
+        }
+    }
+    }
+
+//What kind of list should be returned?
+ExpressionList ExpressionList() : {
+    ExpressionList eList = new ExpressionList();
+    Expression e1;
+}
+{
+    ( e1=Expression() {eList.add(e1);}( "," e1=Expression() {eList.add(e1);} )* )?
+    {return eList;}
+}
+
+

@@ -1,5 +1,6 @@
 
 # Personal Java compiler
+[![Build Status](https://travis-ci.org/CarlosBalladares/Personal-Java-compiler.svg?branch=master)](https://travis-ci.org/CarlosBalladares/Personal-Java-compiler)
 
 This is a java compiler I created with a classmate Daniel May
 and guidance of professor Ronald Garcia for CPSC411 Compiler construction.
